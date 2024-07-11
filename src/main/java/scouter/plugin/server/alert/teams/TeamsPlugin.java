@@ -1,6 +1,12 @@
 package scouter.plugin.server.alert.teams;
 
-import com.google.gson.Gson;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.HttpPost;
@@ -8,11 +14,16 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.util.EntityUtils;
+
 import scouter.lang.AlertLevel;
 import scouter.lang.TextTypes;
 import scouter.lang.TimeTypeEnum;
 import scouter.lang.counters.CounterConstants;
-import scouter.lang.pack.*;
+import scouter.lang.pack.AlertPack;
+import scouter.lang.pack.MapPack;
+import scouter.lang.pack.ObjectPack;
+import scouter.lang.pack.PerfCounterPack;
+import scouter.lang.pack.XLogPack;
 import scouter.lang.plugin.PluginConstants;
 import scouter.lang.plugin.annotation.ServerPlugin;
 import scouter.net.RequestCmd;
@@ -24,14 +35,6 @@ import scouter.server.db.TextRD;
 import scouter.server.netio.AgentCall;
 import scouter.util.DateUtil;
 import scouter.util.HashUtil;
-import scouter.util.IPUtil;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
 public class TeamsPlugin {
 
@@ -52,43 +55,43 @@ public class TeamsPlugin {
 
             // thread count check
             executor.scheduleAtFixedRate(new Runnable() {
-                                             @Override
-                                             public void run() {
-                                                 if (conf.getInt("ext_plugin_thread_count_threshold", 0) == 0) {
-                                                     return;
-                                                 }
-                                                 for (int objHash : javaeeObjHashList) {
-                                                     try {
-                                                         if (AgentManager.isActive(objHash)) {
-                                                             ObjectPack objectPack = AgentManager.getAgent(objHash);
-                                                             MapPack mapPack = new MapPack();
-                                                             mapPack.put("objHash", objHash);
+                @Override
+                public void run() {
+                    if (conf.getInt("ext_plugin_thread_count_threshold", 0) == 0) {
+                        return;
+                    }
+                    for (int objHash : javaeeObjHashList) {
+                        try {
+                            if (AgentManager.isActive(objHash)) {
+                                ObjectPack objectPack = AgentManager.getAgent(objHash);
+                                MapPack mapPack = new MapPack();
+                                mapPack.put("objHash", objHash);
 
-                                                             mapPack = AgentCall.call(objectPack, RequestCmd.OBJECT_THREAD_LIST, mapPack);
+                                mapPack = AgentCall.call(objectPack, RequestCmd.OBJECT_THREAD_LIST, mapPack);
 
-                                                             int threadCountThreshold = groupConf.getInt("ext_plugin_thread_count_threshold", objectPack.objType, 0);
-                                                             int threadCount = mapPack.getList("name").size();
+                                int threadCountThreshold = groupConf.getInt("ext_plugin_thread_count_threshold", objectPack.objType, 0);
+                                int threadCount = mapPack.getList("name").size();
 
-                                                             if (threadCountThreshold != 0 && threadCount > threadCountThreshold) {
-                                                                 AlertPack ap = new AlertPack();
+                                if (threadCountThreshold != 0 && threadCount > threadCountThreshold) {
+                                    AlertPack ap = new AlertPack();
 
-                                                                 ap.level = AlertLevel.WARN;
-                                                                 ap.objHash = objHash;
-                                                                 ap.title = "Thread count exceed a threshold.";
-                                                                 ap.message = objectPack.objName + "'s Thread count(" + threadCount + ") exceed a threshold.";
-                                                                 ap.time = System.currentTimeMillis();
-                                                                 ap.objType = objectPack.objType;
+                                    ap.level = AlertLevel.WARN;
+                                    ap.objHash = objHash;
+                                    ap.title = "Thread count exceed a threshold.";
+                                    ap.message = objectPack.objName + "'s Thread count(" + threadCount + ") exceed a threshold.";
+                                    ap.time = System.currentTimeMillis();
+                                    ap.objType = objectPack.objType;
 
-                                                                 alert(ap);
-                                                             }
-                                                         }
-                                                     } catch (Exception e) {
-                                                         // ignore
-                                                     }
-                                                 }
-                                             }
-                                         },
-                    0, 5, TimeUnit.SECONDS);
+                                    alert(ap);
+                                }
+                            }
+                        } catch (Exception e) {
+                            // ignore
+                        }
+                    }
+                }
+            },
+            0, 5, TimeUnit.SECONDS);
         }
     }
 
@@ -101,7 +104,9 @@ public class TeamsPlugin {
                 new Thread() {
                     public void run() {
                         try {
+                            // https://cjworld.webhook.office.com/webhookb2/547d96eb-3d0e-4d56-aa8f-8164946e6a93@ee6af5c5-684f-4539-9eb6-64793af08027/IncomingWebhook/fdf6b83ecd54438491f239973eef897d/7424369a-02ba-469f-8a14-5c90eb8766b8
                             String webhookURL = groupConf.getValue("ext_plugin_teams_webhook_url", pack.objType);
+                            // General
                             String channel = groupConf.getValue("ext_plugin_teams_channel", pack.objType);
 
                             assert webhookURL != null;
@@ -239,7 +244,66 @@ public class TeamsPlugin {
                 ap.message = "URL  :  "+service + " \r\n\r\n Error_Message  :  " + TextRD.getString(date, TextTypes.ERROR, pack.error);
                 ap.time = System.currentTimeMillis();
                 ap.objType = objType;
-                alert(ap);
+                // alert(ap);
+
+                // Get agent Name
+                String name = AgentManager.getAgentName(pack.objHash) == null ? "N/A" : (String) AgentManager.getAgentName(pack.objHash);
+
+                if ("/cjescwas01/escprd1".equals(name) || "/cjescwas02/escprd2".equals(name) || "/cjescwasdev/escdev".equals(name)) {
+                    if (groupConf.getBoolean("ext_plugin_esc_teams_xlog_enabled", objType, false )){
+                        alert(ap);
+                    }
+                } else if("/cjwas03/expwas01".equals(name) || "/cjwas04/expwas02".equals(name)) {
+                    if (groupConf.getBoolean("ext_plugin_exp_teams_xlog_enabled", objType, false )){
+                        alert(ap);
+                    }
+                } else if("/cjwas03/igap_was3".equals(name) || "/cjwas04/igap_was4".equals(name)) {
+                    if (groupConf.getBoolean("ext_plugin_igap_teams_xlog_enabled", objType, false )){
+                        alert(ap);
+                    }
+                } else if("/cjwas03/tmsprd1-1".equals(name) || "/cjwas03/tmsprd1-2".equals(name) || "/cjwas04/tmsprd2-1".equals(name) || "/cjwas04/tmsprd2-2".equals(name)) {
+                    if (groupConf.getBoolean("ext_plugin_tms_teams_xlog_enabled", objType, false )){
+                        alert(ap);
+                    }
+                } else if("/gprtwas1/wise_prd11".equals(name) || "/gprtwas1/wise_prd12".equals(name) || "/gprtwas2/wise_prd21".equals(name) || "/gprtwas2/wise_prd22".equals(name)) {
+                    if (groupConf.getBoolean("ext_plugin_wise_teams_xlog_enabled", objType, false )) {
+                        alert(ap);
+                    }
+                } else if("/cjwas03/mproWas03".equals(name) || "/cjwas04/mproWas04".equals(name)) {
+                    if (groupConf.getBoolean("ext_plugin_mpro_teams_xlog_enabled", objType, false )){
+                        alert(ap);
+                    }
+                } else if("/cjwas01/cis1".equals(name) || "/cjwas02/cis2".equals(name)) {
+                    if (groupConf.getBoolean("ext_plugin_cis_teams_xlog_enabled", objType, false )){
+                        alert(ap);
+                    }
+                } else if("/cjodswas01/odsprd01".equals(name) || "/cjodswas02/odsprd02".equals(name)) {
+                    if (groupConf.getBoolean("ext_plugin_ods_teams_xlog_enabled", objType, false )){
+                        alert(ap);
+                    }
+                } else if("/cjpcplwas1/cplwas1".equals(name) || "/cjpcplwas2/cplwas2".equals(name)) {
+                    if (groupConf.getBoolean("ext_plugin_cpl_teams_xlog_enabled", objType, false )){
+                        alert(ap);
+                    }
+                } else if("/cjwas03/qmswas1".equals(name) || "/cjwas04/qmswas2".equals(name)) {
+                    if (groupConf.getBoolean("ext_plugin_qms_teams_xlog_enabled", objType, false )){
+                        alert(ap);
+                    }
+                } else if("/cjirisap1/bmis_was1".equals(name) || "/cjemap/bmis_was2".equals(name)) {
+                    if (groupConf.getBoolean("ext_plugin_bmis_teams_xlog_enabled", objType, false )){
+                        alert(ap);
+                    }
+                } else if("/cjirisap1/iris_was1".equals(name) || "/cjemap/iris_was2".equals(name)) {
+                    if (groupConf.getBoolean("ext_plugin_iris_teams_xlog_enabled", objType, false )){
+                        alert(ap);
+                    }
+                } else if("/cj-meta-app/cj-meta-app".equals(name)) {
+                    if (groupConf.getBoolean("ext_plugin_meta_teams_xlog_enabled", objType, false )){
+                        alert(ap);
+                    }
+                } else {
+                    alert(ap);
+                }
             }
 
             try {
