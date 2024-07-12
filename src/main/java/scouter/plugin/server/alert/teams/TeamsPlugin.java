@@ -386,7 +386,7 @@ public class TeamsPlugin {
         }
     }
 
-    private String makeMessage(String serverName, String type, String title, String msg) {
+    /* private String makeMessage(String serverName, String type, String title, String msg) {
         StringBuilder template = new StringBuilder();
         template.append("{");
         template.append("\"@type\": \"MessageCard\",");
@@ -401,5 +401,40 @@ public class TeamsPlugin {
                 .append("\",");
         template.append("}");
         return template.toString();
+    } */
+
+    private String makeMessage(String serverName, String type, String title, String msg) {
+        StringBuilder template = new StringBuilder();
+        template.append("{");
+        template.append("\"type\": \"message\",");
+        template.append("\"attachments\": [ {");
+        template.append("\"contentType\": \"application/vnd.microsoft.card.adaptive\",");
+        template.append("\"contentUrl\": null,");
+        template.append("\"content\": {");
+        template.append("\"type\": \"AdaptiveCard\",");
+        template.append("\"$schema\": \"http://adaptivecards.io/schemas/adaptive-card.json\",");
+        template.append("\"version\": \"1.5\",");
+        template.append("\"body\": [");
+        template.append("{");
+        template.append("\"type\": \"TextBlock\",");
+        template.append("\"text\": \"")
+                .append("[SERVER] : " + serverName).append("\n")
+                .append("\n[TYPE] : " + type).append("\n")
+                .append("\n[TITLE] : " + title).append("\n")
+                .append("\n[MESSAGE] : \n").append("\n")
+                .append("\n"+msg+"\n")
+                .append("\",");
+        template.append("\"wrap\": true,");
+        template.append("}");
+        template.append("],");
+        template.append("\"msteams\": {");
+        template.append("\"width\": \"Full\",");
+        template.append("}");
+        template.append("}");
+        template.append("}");
+        template.append("]");
+        template.append("}");
+        return template.toString();
     }
 }
+
