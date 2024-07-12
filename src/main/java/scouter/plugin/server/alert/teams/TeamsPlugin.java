@@ -132,7 +132,7 @@ public class TeamsPlugin {
                                 title = "An object is activated now!!! ";
                                 msg = pack.message.substring(0, pack.message.indexOf("OBJECT") - 1);
                             }
-
+                            
                             String finalMsg = makeMessage(name, pack.objType.toUpperCase(), title, msg);
 
                             if (groupConf.getBoolean("ext_plugin_ignore_duplicate_alert", pack.objType,false) && lastPack != null){
@@ -297,8 +297,24 @@ public class TeamsPlugin {
                     if (groupConf.getBoolean("ext_plugin_iris_teams_xlog_enabled", objType, false )){
                         alert(ap);
                     }
+                } else if("/pEacA1/PFLS_LIVE1".equals(name) || "/pEacA2/PFLS_LIVE2".equals(name)) {
+                    if (groupConf.getBoolean("ext_plugin_pfls_teams_xlog_enabled", objType, false )){
+                        alert(ap);
+                    }
+                } else if("/cjwas03/amsprd_1".equals(name) || "/cjwas04/amsprd_2".equals(name)) {
+                    if (groupConf.getBoolean("ext_plugin_ams_teams_xlog_enabled", objType, false )){
+                        alert(ap);
+                    }
+                } else if("/cjwas03/cmsprd_1".equals(name) || "/cjwas04/cmsprd_2".equals(name)) {
+                    if (groupConf.getBoolean("ext_plugin_cms_teams_xlog_enabled", objType, false )){
+                        alert(ap);
+                    }
                 } else if("/cj-meta-app/cj-meta-app".equals(name)) {
                     if (groupConf.getBoolean("ext_plugin_meta_teams_xlog_enabled", objType, false )){
+                        alert(ap);
+                    }
+                } else if("/CJFPAAP/fta".equals(name)) {
+                    if (groupConf.getBoolean("ext_plugin_fta_teams_xlog_enabled", objType, false )){
                         alert(ap);
                     }
                 } else {
@@ -422,7 +438,7 @@ public class TeamsPlugin {
                 .append("\n[TYPE] : " + type).append("\n")
                 .append("\n[TITLE] : " + title).append("\n")
                 .append("\n[MESSAGE] : \n").append("\n")
-                .append("\n"+msg+"\n")
+                .append("\n"+ msg.replace('"', '\"') +"\n")
                 .append("\",");
         template.append("\"wrap\": true,");
         template.append("}");
