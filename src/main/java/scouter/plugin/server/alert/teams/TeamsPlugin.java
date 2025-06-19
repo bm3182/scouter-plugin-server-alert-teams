@@ -309,7 +309,11 @@ public class TeamsPlugin {
                     if (groupConf.getBoolean("ext_plugin_cms_teams_xlog_enabled", objType, false )){
                         alert(ap);
                     }
-                } else if("/cj-meta-app/cj-meta-app".equals(name)) {
+                } else if("/CJHANAROWAS01/HANARO_PRD1".equals(name) || "/CJHANAROWAS02/HANARO_PRD2".equals(name)) {
+                    if (groupConf.getBoolean("ext_plugin_hanaro_teams_xlog_enabled", objType, false )){
+                        alert(ap);
+                    }
+                }else if("/cj-meta-app/cj-meta-app".equals(name)) {
                     if (groupConf.getBoolean("ext_plugin_meta_teams_xlog_enabled", objType, false )){
                         alert(ap);
                     }
